@@ -43,9 +43,9 @@ void CRhodesAppBase::initAppUrls()
     m_strRhodesPath = "";
 #else
     m_strBlobsDirPath = getRhoRootPath() + RHO_EMULATOR_DIR"/db/db-files";
-	m_strDBDirPath = getRhoRootPath() + RHO_EMULATOR_DIR"/db";
+    m_strDBDirPath = getRhoRootPath() + RHO_EMULATOR_DIR"/db";
 
-    m_strAppRootPath += getRhoRootPath();
+    m_strAppRootPath = getRhoRootPath();
 #endif
 }
 
@@ -234,3 +234,10 @@ int rho_base64_decode(const char *src, int srclen, char *dst)
 }
 	
 } //extern "C"
+
+#if !defined(OS_ANDROID)
+rho::String rho_sysimpl_get_phone_id()
+{
+    return "";
+}
+#endif

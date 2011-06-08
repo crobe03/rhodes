@@ -1,11 +1,12 @@
-package com.rhomobile.rhodes;
+package com.rhomobile.rhodes.mainview;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
-import com.rhomobile.rhodes.mainview.MainView;
-import com.rhomobile.rhodes.mainview.SimpleMainView;
+import com.rhomobile.rhodes.Logger;
+import com.rhomobile.rhodes.RhodesActivity;
+import com.rhomobile.rhodes.RhodesService;
 
 import android.content.Context;
 import android.content.res.AssetManager;
@@ -150,8 +151,6 @@ public class SplashScreen implements MainView {
 	
 	@Override
 	public void forward(int index) {
-		// TODO Auto-generated method stub
-		
 	}
 	@Override
 	public void reload(int index) {
@@ -165,34 +164,24 @@ public class SplashScreen implements MainView {
 	}
 	@Override
 	public void switchTab(int index) {
-		// TODO Auto-generated method stub
-		
 	}
 	@Override
 	public int activeTab() {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 	@Override
 	public int getTabsCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return 1;
 	}
 	@Override
 	public void loadData(String data, int index) {
-		// TODO Auto-generated method stub
-		
 	}
 	@Override
 	public void addNavBar(String title, Map<Object, Object> left,
 			Map<Object, Object> right) {
-		// TODO Auto-generated method stub
-		
 	}
 	@Override
 	public void removeNavBar() {
-		// TODO Auto-generated method stub
-		
 	}
 
 	/*

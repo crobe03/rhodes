@@ -16,7 +16,7 @@
   <property name="locale">
    <locale language="English" country="UnitedStates"/>
   </property>
-  <widget class="QWidget" name="centralwidget">
+  <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <property name="spacing">
      <number>0</number>
@@ -24,6 +24,13 @@
     <property name="margin">
      <number>0</number>
     </property>
+    <item>
+     <widget class="QtNativeTabBar" name="tabBar">
+      <property name="visible">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
     <item>
      <widget class="QWebView" name="webView">
       <property name="url">
@@ -115,6 +122,11 @@
    <class>QWebView</class>
    <extends>QWidget</extends>
    <header>QtWebKit/QWebView</header>
+  </customwidget>
+  <customwidget>
+   <class>QtNativeTabBar</class>
+   <extends>QTabBar</extends>
+   <header>QtNativeTabBar.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

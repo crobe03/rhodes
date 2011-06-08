@@ -6,14 +6,15 @@ import java.util.Iterator;
 
 import com.rhomobile.rhodes.bluetooth.RhoBluetoothManager;
 import com.rhomobile.rhodes.mainview.MainView;
+import com.rhomobile.rhodes.mainview.SplashScreen;
 import com.rhomobile.rhodes.util.PerformOnUiThread;
 import com.rhomobile.rhodes.webview.ChromeClientOld;
 import com.rhomobile.rhodes.webview.RhoWebSettings;
+import com.rhomobile.rhodes.webview.RhoWebViewClient;
 
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -88,14 +89,6 @@ public class RhodesActivity extends BaseActivity {
 		mListeners.remove(listener);
 	}
 	
-	
-	private Runnable mSetup = new Runnable() {
-		public void run() {
-			doSetup();
-		}
-	};
-	
-	
 	public void processStartupListeners() {
 		int i;
 		for (i = 1; i < RhodesActivityStartupListeners.ourRunnableList.length; i++) {
@@ -137,6 +130,8 @@ public class RhodesActivity extends BaseActivity {
 		//ct.setPriority(Thread.MAX_PRIORITY);
 		uiThreadId = ct.getId();
 
+		sInstance = this;
+
 		if (!RhodesService.isTitleEnabled()) {
 			requestWindowFeature(Window.FEATURE_NO_TITLE);
 		}
@@ -145,13 +140,12 @@ public class RhodesActivity extends BaseActivity {
 		requestWindowFeature(Window.FEATURE_PROGRESS);
 		getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 10000);
 
-		mSplashScreen = new SplashScreen(this);
-		setMainView(mSplashScreen);
-		
 		mHandler = new Handler();
-		mHandler.post(mSetup);
-		
-		sInstance = this;
+
+		initWebStuff();
+
+        mSplashScreen = new SplashScreen(this);
+        setMainView(mSplashScreen);
 
 		Log.i(TAG, ">>>>>>>>>>>>>>> onCreate()");
 
@@ -336,10 +330,6 @@ public class RhodesActivity extends BaseActivity {
 		mHandler.postDelayed(r, delay);
 	}
 	
-	private void doSetup() {
-		initWebStuff();
-	}
-	
 	public SplashScreen getSplashScreen() {
 		return mSplashScreen;
 	}
@@ -436,30 +426,7 @@ public class RhodesActivity extends BaseActivity {
 				Class.forName(fullName).asSubclass(RhoWebSettings.class);
 			mWebSettings = wsClass.newInstance();
 			
-			mWebViewClient = new WebViewClient() {
-				@Override
-				public boolean shouldOverrideUrlLoading(WebView view, String url) {
-					return getService().handleUrlLoading(url);
-				}
-				
-				@Override
-				public void onPageStarted(WebView view, String url, Bitmap favicon) {
-					if (ENABLE_LOADING_INDICATION)
-						getWindow().setFeatureInt(Window.FEATURE_PROGRESS, 0);
-					super.onPageStarted(view, url, favicon);
-				}
-				
-				@Override
-				public void onPageFinished(WebView view, String url) {
-					// Set title
-					String title = view.getTitle();
-					setTitle(title);
-					if (ENABLE_LOADING_INDICATION)
-						getWindow().setFeatureInt(Window.FEATURE_PROGRESS, MAX_PROGRESS);
-					
-					super.onPageFinished(view, url);
-				}
-			};
+			mWebViewClient = new RhoWebViewClient();
 		}
 		catch (Exception e) {
 			throw new IllegalStateException(e);
@@ -474,6 +441,8 @@ public class RhodesActivity extends BaseActivity {
 
         Intent intent = getIntent();
         String startParams = (intent.getData() != null) ? intent.toUri(0) : "";
+        
+        
         Uri uri = Uri.parse(startParams);
         String scheme = uri.getScheme();
         if(startParams.compareTo("") != 0)
@@ -482,7 +451,9 @@ public class RhodesActivity extends BaseActivity {
             if(startParams.startsWith("//"))
                 startParams = startParams.substring(2);
         }
-
+        if (startParams.lastIndexOf("#") >= 0) {
+        	startParams = startParams.substring(0, startParams.lastIndexOf("#"));
+        }
         if(!RhodesApplication.canStart(startParams))
         {
             Logger.E(TAG, "This is hidden app and can be started only with security key.");
@@ -491,10 +462,12 @@ public class RhodesActivity extends BaseActivity {
         }
 
         String urlStart = uri.getPath();
-        if (urlStart.compareTo("") != 0)
-        {
-            Logger.D(TAG, "PROCESS URL START: " + urlStart);
-            RhoConf.setString("start_path", Uri.decode(urlStart));
+        if (urlStart != null) { 
+		    if ("".compareTo(urlStart) != 0)
+		    {
+		        Logger.D(TAG, "PROCESS URL START: " + urlStart);
+		        RhoConf.setString("start_path", Uri.decode(urlStart));
+		    }
         }
 
 		ENABLE_LOADING_INDICATION = !RhoConf.getBool("disable_loading_indication");

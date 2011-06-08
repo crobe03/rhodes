@@ -24,6 +24,7 @@ import com.rhomobile.rhodes.event.EventStore;
 import com.rhomobile.rhodes.file.RhoFileApi;
 import com.rhomobile.rhodes.geolocation.GeoLocation;
 import com.rhomobile.rhodes.mainview.MainView;
+import com.rhomobile.rhodes.mainview.SplashScreen;
 import com.rhomobile.rhodes.ui.AboutDialog;
 import com.rhomobile.rhodes.ui.LogOptionsDialog;
 import com.rhomobile.rhodes.ui.LogViewDialog;
@@ -35,6 +36,7 @@ import com.rhomobile.rhodes.uri.TelUriHandler;
 import com.rhomobile.rhodes.uri.UriHandler;
 import com.rhomobile.rhodes.uri.VideoUriHandler;
 import com.rhomobile.rhodes.util.PerformOnUiThread;
+import com.rhomobile.rhodes.util.PhoneId;
 
 import android.app.AlertDialog;
 import android.app.Notification;
@@ -252,6 +254,15 @@ public class RhodesService extends Service {
 	
 	public static native boolean isTitleEnabled();
 	
+	private static final String CONF_PHONE_ID = "phone_id";
+	private PhoneId getPhoneId() {
+	    String strPhoneId = RhoConf.getString(CONF_PHONE_ID);
+	    PhoneId phoneId = PhoneId.getId(this, strPhoneId);
+	    if (strPhoneId == null || strPhoneId.length() == 0)
+	        RhoConf.setString(CONF_PHONE_ID, phoneId.toString());
+
+	    return phoneId;
+	}
 	
     // TODO: Move these methods to RhodesApplication class
 	private void initRootPath() {
@@ -816,6 +827,10 @@ public class RhodesService extends Service {
 			else if (name.equalsIgnoreCase("has_calendar")) {
 				return new Boolean(EventStore.hasCalendar());
 			}
+			else if (name.equalsIgnoreCase("phone_id")) {
+			    PhoneId phoneId = RhodesService.getInstance().getPhoneId();
+			    return phoneId.toString();
+			}
 		}
 		catch (Exception e) {
 			Logger.E(TAG, "Can't get property \"" + name + "\": " + e);
@@ -1239,7 +1254,7 @@ public class RhodesService extends Service {
 		}
 		
 		String syncSources = extras.getString("do_sync");
-		if (syncSources != null) {
+		if ((syncSources != null) && (syncSources.length() > 0)) {
 			Logger.D(TAG, "PUSH: Sync:");
 			boolean syncAll = false;
 			for (String source : syncSources.split(",")) {

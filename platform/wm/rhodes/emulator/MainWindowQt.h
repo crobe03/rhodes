@@ -2,18 +2,20 @@
 
 #pragma once
 
+#include <string>
 #include "logging/RhoLog.h"
 #include "common/RhoConf.h"
 #include "common/RhodesApp.h"
+#include "common/rhoparams.h"
 #include "Alert.h"
 #include "RhoNativeViewManagerWM.h"
 #include "SyncStatusDlg.h"
 #include "NativeToolbarQt.h"
+#include "NativeTabbarQt.h"
 #if defined(OS_WINDOWS)
 #include "menubar.h"
 #endif
 #include "LogView.h"
-#include "MainWindowProxy.h"
 #include "MainWindowCallback.h"
 
 static UINT WM_TAKEPICTURE             = ::RegisterWindowMessage(L"RHODES_WM_TAKEPICTURE");
@@ -22,8 +24,8 @@ static UINT WM_TAKESIGNATURE           = ::RegisterWindowMessage(L"RHODES_WM_TAK
 static UINT WM_ALERT_SHOW_POPUP        = ::RegisterWindowMessage(L"RHODES_WM_ALERT_SHOW_POPUP");
 static UINT WM_ALERT_HIDE_POPUP        = ::RegisterWindowMessage(L"RHODES_WM_ALERT_HIDE_POPUP");
 static UINT WM_DATETIME_PICKER         = ::RegisterWindowMessage(L"RHODES_WM_DATETIME_PICKER");
-static UINT WM_EXECUTE_COMMAND           = ::RegisterWindowMessage(L"RHODES_WM_EXECUTE_COMMAND");
-static UINT WM_EXECUTE_RUNNABLE           = ::RegisterWindowMessage(L"RHODES_WM_EXECUTE_RUNNABLE");
+static UINT WM_EXECUTE_COMMAND         = ::RegisterWindowMessage(L"RHODES_WM_EXECUTE_COMMAND");
+static UINT WM_EXECUTE_RUNNABLE        = ::RegisterWindowMessage(L"RHODES_WM_EXECUTE_RUNNABLE");
 
 #define ID_CUSTOM_MENU_ITEM_FIRST (WM_APP+3)
 #define ID_CUSTOM_MENU_ITEM_LAST  (ID_CUSTOM_MENU_ITEM_FIRST + (APP_MENU_ITEMS_MAX) - 1)
@@ -46,16 +48,44 @@ public:
     virtual void onCustomMenuItemCommand(int nItemPos);
 	virtual void onWindowClose(void);
     // public methods:
-    void Navigate2(BSTR URL);
+    void Navigate2(BSTR URL, int index);
     HWND Initialize(const wchar_t* title);
     void MessageLoop(void);
 	void DestroyUi(void);
     void performOnUiThread(rho::common::IRhoRunnable* pTask);
     CNativeToolbar& getToolbar(){ return m_toolbar; }
-    CMainWindowProxy &getProxy(){ return m_mainWindowProxy; }
-    HWND getWebViewHWND();
+    CNativeTabbar& getTabbar(){ return m_tabbar; }
+    HWND getWebViewHWND(int index);
 	// for 'main_window_closed' System property
 	static bool mainWindowClosed;
+
+    // proxy methods:
+    void* init(IMainWindowCallback* callback, const wchar_t* title);
+    void setCallback(IMainWindowCallback* callback);
+    void messageLoop(void);
+    void navigate(const wchar_t* url, int index);
+    void GoBack(void);
+    void GoForward(void);
+    void Refresh(int index);
+	// toolbar/tabbar
+    bool isStarted();
+    // toolbar proxy
+    int getToolbarHeight();
+    void createToolbar(rho_param *p);
+    void removeToolbar();
+    void removeAllButtons();
+    // menu proxy
+    void menuClear();
+    void menuAddSeparator();
+    void menuAddAction(const char* label, int item);
+	// tabbar
+    int getTabbarHeight();
+    void removeAllTabs(bool restore);
+    void createTabbar(int bar_type, rho_param *p);
+    void removeTabbar();
+    void tabbarSwitch(int index);
+    void tabbarBadge(int index, char* badge);
+    int tabbarGetCurrent();
 
     BEGIN_MSG_MAP(CMainWindow)
         MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
@@ -87,8 +117,8 @@ private:
     LRESULT OnNavigateForwardCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
     LRESULT OnBackCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
     LRESULT OnLogCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
-    LRESULT OnRefreshCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
-    LRESULT OnNavigateCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+    LRESULT OnRefreshCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWndCtl, BOOL& /*bHandled*/);
+    LRESULT OnNavigateCommand(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWndCtl, BOOL& /*bHandled*/);
 
     LRESULT OnTakePicture(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
     LRESULT OnSelectPicture(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
@@ -101,7 +131,10 @@ private:
 private:
     CLogView m_logView;
     CNativeToolbar m_toolbar;
-    CMainWindowProxy m_mainWindowProxy;
+	CNativeTabbar m_tabbar;
+    bool m_started;
+    void* qtMainWindow;
+    void* qtApplication;
 
 private:
     static int m_screenWidth;
@@ -115,6 +148,11 @@ private:
     rho::Vector<rho::common::CAppMenuItem> m_arAppMenuItems;
     CAlertDialog *m_alertDialog;
     CSyncStatusDlg *m_SyncStatusDlg;
+public:
+    typedef struct _TNavigateData {
+        int index;
+        const wchar_t* url;
+    } TNavigateData;
 };
 
 #if !defined(_WIN32_WCE)

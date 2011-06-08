@@ -7,6 +7,7 @@ extern CMainWindow& getAppWindow();
 
 extern "C"
 {
+int rho_wmsys_has_touchscreen();
 void remove_native_toolbar();
 void create_native_toolbar(int bar_type, rho_param *p) 
 {
@@ -45,29 +46,66 @@ VALUE nativebar_started()
 }
 
 //Tabbar
-void create_native_tabbar(int bar_type, rho_param *p) {
+void remove_native_tabbar()
+{
+#ifdef RHODES_EMULATOR
+    getAppWindow().performOnUiThread(new CNativeTabbar::CRemoveTask() );
+#endif
 }
 
-void remove_native_tabbar() {
+void create_native_tabbar(int bar_type, rho_param *p)
+{
+#ifdef RHODES_EMULATOR
+    // check for iPad SplitTabBar type -> redirect to TabBar
+    if (bar_type == VTABBAR_TYPE) {
+        bar_type = TABBAR_TYPE;
+    }
+
+	if ( bar_type == NOBAR_TYPE )
+        remove_native_tabbar();
+    else if ( bar_type == TABBAR_TYPE )
+    {
+        getAppWindow().performOnUiThread(new CNativeTabbar::CCreateTask(bar_type, p) );
+    } else
+    {
+    	RAWLOGC_ERROR("NativeTabbar", "Only Tabbar control is supported.");
+    }
+#endif
 }
 
-void native_tabbar_switch_tab(int index) {
+void native_tabbar_switch_tab(int index)
+{
+#ifdef RHODES_EMULATOR
+    getAppWindow().performOnUiThread(new CNativeTabbar::CSwitchTask(index) );
+#endif
 }
 
-void native_tabbar_set_tab_badge(int index,char *val) {
+void native_tabbar_set_tab_badge(int index,char *val)
+{
+#ifdef RHODES_EMULATOR
+    getAppWindow().performOnUiThread(new CNativeTabbar::CBadgeTask(index, val) );
+#endif
 }
 
 void nativebar_set_tab_badge(int index,char* val)
 {
+	RAWLOGC_INFO("NativeBar", "NativeBar.set_tab_badge() is DEPRECATED. Use Rho::NativeTabbar.set_tab_badge().");
+    native_tabbar_set_tab_badge(index, val);
 }
 
 int native_tabbar_get_current_tab() 
 {
+#ifdef RHODES_EMULATOR
+	return getAppWindow().tabbarGetCurrent();
+#else
 	return 0;
+#endif
 }
 
-void nativebar_switch_tab(int index) {
-	//TODO: Implement me!
+void nativebar_switch_tab(int index)
+{
+	RAWLOGC_INFO("NativeBar", "NativeBar.switch_tab() is DEPRECATED. Use Rho::NativeTabbar.switch_tab().");
+	native_tabbar_switch_tab(index);
 }
 
 //NavBar - iphone only

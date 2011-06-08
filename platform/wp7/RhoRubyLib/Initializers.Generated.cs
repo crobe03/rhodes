@@ -50,7 +50,8 @@ namespace rho.rubyext {
             );
             
             DefineLibraryMethod(module, "create_native_tabbar", 0x21, 
-                0x00000000U, 
+                0x00000000U, 0x00000000U, 
+                new Action<IronRuby.Builtins.RubyModule, System.Int32, IronRuby.Builtins.Hash>(rho.rubyext.RhoNativeBar.createNativeTabBar), 
                 new Action<IronRuby.Builtins.RubyModule, System.Int32, IronRuby.Builtins.RubyArray>(rho.rubyext.RhoNativeBar.createNativeTabBar)
             );
             
@@ -62,7 +63,7 @@ namespace rho.rubyext {
             
             DefineLibraryMethod(module, "native_tabbar_get_current_tab", 0x21, 
                 0x00000000U, 
-                new Action<IronRuby.Builtins.RubyModule>(rho.rubyext.RhoNativeBar.nativeTabBarGetCurrentTab)
+                new Func<IronRuby.Builtins.RubyModule, System.Int32>(rho.rubyext.RhoNativeBar.nativeTabBarGetCurrentTab)
             );
             
             DefineLibraryMethod(module, "native_tabbar_set_tab_badge", 0x21, 
@@ -225,6 +226,11 @@ namespace rho.rubyext {
                 new Func<IronRuby.Builtins.RubyModule, System.String, System.Int32, System.String, System.Boolean>(rho.rubyext.RhoSyncEngine.is_blob_attr)
             );
             
+            DefineLibraryMethod(module, "is_syncing", 0x21, 
+                0x00000000U, 
+                new Func<IronRuby.Builtins.RubyModule, System.Boolean>(rho.rubyext.RhoSyncEngine.is_syncing)
+            );
+            
             DefineLibraryMethod(module, "logged_in", 0x21, 
                 0x00000000U, 
                 new Func<IronRuby.Builtins.RubyModule, System.Int32>(rho.rubyext.RhoSyncEngine.logged_in)
@@ -272,7 +278,7 @@ namespace rho.rubyext {
             
             DefineLibraryMethod(module, "stop_sync", 0x21, 
                 0x00000000U, 
-                new Action<IronRuby.Builtins.RubyModule>(rho.rubyext.RhoSyncEngine.set_pollinterval)
+                new Action<IronRuby.Builtins.RubyModule>(rho.rubyext.RhoSyncEngine.stop_sync)
             );
             
             DefineLibraryMethod(module, "update_blob_attribs", 0x21, 

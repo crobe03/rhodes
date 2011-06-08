@@ -1,3 +1,4 @@
+#pragma warning(disable:4018)
 #pragma warning(disable:4996)
 #include "QtMainWindow.h"
 #include "ui_QtMainWindow.h"
@@ -6,22 +7,25 @@
 #include <QWebFrame>
 #include <QWebSettings>
 #include <QWebSecurityOrigin>
+#include <QWebHistory>
 #include "ext/rho/rhoruby.h"
 #include "common/RhoStd.h"
 #include "common/RhodesApp.h"
 #include "rubyext/WebView.h"
+#include "rubyext/NativeToolbarExt.h"
 #undef null
 
 extern "C" {
-	extern VALUE rb_thread_main(void);
-	extern VALUE rb_thread_wakeup(VALUE thread);
+    extern VALUE rb_thread_main(void);
+    extern VALUE rb_thread_wakeup(VALUE thread);
 }
 
 QtMainWindow::QtMainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::QtMainWindow),
-    wi(new QWebInspector()),
-    cb(NULL)
+    main_webInspector(new QWebInspector()),
+    cb(NULL),
+    cur_tbrp(0)
 {
     ui->setupUi(this);
 
@@ -39,22 +43,25 @@ QtMainWindow::QtMainWindow(QWidget *parent) :
 
     this->ui->webView->page()->setLinkDelegationPolicy(QWebPage::DelegateAllLinks);
     this->ui->webView->page()->mainFrame()->securityOrigin().setDatabaseQuota(1024*1024*1024);
+    this->main_webView = this->ui->webView;
+    this->cur_webInspector = this->main_webInspector;
 
     this->move(0,0);
     this->ui->toolBar->hide();
     this->ui->toolBarRight->hide();
 
     // connecting WebInspector
-    wi->setWindowTitle("Web Inspector");
-    wi->setPage(ui->webView->page());
-    wi->move(416, this->geometry().y());
-    wi->resize(850, 600);
-    wi->show();
+    main_webInspector->setWindowTitle("Web Inspector");
+    main_webInspector->setPage(ui->webView->page());
+    main_webInspector->move(416, 0);
+    main_webInspector->resize(850, 600);
+    main_webInspector->show();
 }
 
 QtMainWindow::~QtMainWindow()
 {
-    delete wi;
+    tabbarRemoveAllTabs(false);
+    delete main_webInspector;
     delete ui;
 }
 
@@ -77,7 +84,8 @@ void QtMainWindow::closeEvent(QCloseEvent *ce)
 {
     rb_thread_wakeup(rb_thread_main());
     if (cb) cb->onWindowClose();
-	wi->close();
+    tabbarRemoveAllTabs(false);
+    main_webInspector->close();
     QMainWindow::closeEvent(ce);
 }
 
@@ -85,6 +93,14 @@ void QtMainWindow::resizeEvent(QResizeEvent *event)
 {
     if (cb)
         cb->updateSizeProperties(event->size().width(), event->size().height()); // ui->webView
+}
+
+bool QtMainWindow::isStarted(void)
+{
+    return (tabViews.size() > 0) ||
+      ( (ui->toolBar->isVisible() || ui->toolBarRight->isVisible()) &&
+        ((ui->toolBar->actions().size() > 0) || (ui->toolBarRight->actions().size() > 0))
+      );
 }
 
 void QtMainWindow::on_actionBack_triggered()
@@ -128,14 +144,15 @@ void QtMainWindow::on_menuMain_aboutToShow()
     if (cb) cb->createCustomMenu();
 }
 
-void QtMainWindow::navigate(QString url)
+void QtMainWindow::navigate(QString url, int index)
 {
+    QWebView* wv = (index < tabViews.size()) && (index >= 0) ? tabViews[index] : ui->webView;
     if (url.startsWith("javascript:", Qt::CaseInsensitive)) {
         url.remove(0,11);
-        ui->webView->stop();
-        ui->webView->page()->mainFrame()->evaluateJavaScript(url);
+        wv->stop();
+        wv->page()->mainFrame()->evaluateJavaScript(url);
     } else
-        ui->webView->load(QUrl(url));
+        wv->load(QUrl(url));
 }
 
 void QtMainWindow::GoBack(void)
@@ -148,10 +165,183 @@ void QtMainWindow::GoForward(void)
     ui->webView->forward();
 }
 
-void QtMainWindow::Refresh(void)
+void QtMainWindow::Refresh(int index)
 {
-    ui->webView->reload();
+    ((index < tabViews.size()) && (index >= 0) ? tabViews[index] : ui->webView) -> reload();
 }
+
+
+// Tabbar:
+
+void QtMainWindow::tabbarRemoveAllTabs(bool restore)
+{
+    // removing WebViews
+    for (int i=0; i<tabViews.size(); ++i) {
+        tabbarDisconnectWebView(tabViews[i], tabInspect[i]);
+        tabInspect[i]->close();
+        delete tabInspect[i];
+    }
+    tabViews.clear();
+    tabInspect.clear();
+
+    // removing Tabs
+    for (int i=ui->tabBar->count()-1; i >= 0; --i)
+        ui->tabBar->removeTab(i);
+
+    // restoring main WebView
+    tabbarWebViewRestore(restore);
+}
+
+void QtMainWindow::tabbarInitialize()
+{
+    tabbarRemoveAllTabs(false);
+    ui->tabBar->setStyleSheet("");
+}
+
+int QtMainWindow::tabbarAddTab(const QString& label, const char* icon, bool disabled, const QColor* web_bkg_color, QTabBarRuntimeParams& tbrp)
+{
+    QWebView* wv = main_webView;
+    QWebInspector* wI = main_webInspector;
+    if (!tbrp["use_current_view_for_tab"].toBool()) {
+        // creating web view
+        wv = new QWebView();
+        wv->page()->setLinkDelegationPolicy(QWebPage::DelegateAllLinks);
+        wv->page()->mainFrame()->securityOrigin().setDatabaseQuota(1024*1024*1024);
+        if (web_bkg_color && (web_bkg_color->name().length()>0))
+            wv->setHtml( QString("<html><body style=\"background:") + web_bkg_color->name() + QString("\"></body></html>") );
+        // creating and attaching web inspector
+        wI = new QWebInspector();
+        wI->setWindowTitle("Web Inspector");
+        wI->setPage(wv->page());
+        wI->move(main_webInspector->x(), main_webInspector->y());
+        wI->resize(main_webInspector->width(), main_webInspector->height());
+    }
+
+    tabViews.push_back(wv);
+    tabInspect.push_back(wI);
+
+    cur_tbrp = &tbrp;
+    if (icon && (strlen(icon) > 0))
+        ui->tabBar->addTab(QIcon(QString(icon)), label);
+    else
+        ui->tabBar->addTab(label);
+    if (disabled)
+		ui->tabBar->setTabEnabled(ui->tabBar->count()-1, false);
+    cur_tbrp = 0;
+	ui->tabBar->setTabData(ui->tabBar->count()-1, tbrp);
+
+    return ui->tabBar->count() - 1;
+}
+
+void QtMainWindow::tabbarShow()
+{
+    ui->tabBar->show();
+}
+
+void QtMainWindow::tabbarConnectWebView(QWebView* webView, QWebInspector* webInspector)
+{
+    if (webView->parent()==0) {
+        webView->setParent(ui->centralWidget);
+        ui->verticalLayout->addWidget(webView);
+        webView->show();
+    }
+    if (webView != main_webView) {
+        QObject::connect(webView, SIGNAL(linkClicked(const QUrl&)), this, SLOT(on_webView_linkClicked(const QUrl&)));
+        QObject::connect(webView, SIGNAL(loadStarted()), this, SLOT(on_webView_loadStarted()));
+        QObject::connect(webView, SIGNAL(loadFinished(bool)), this, SLOT(on_webView_loadFinished(bool)));
+        QObject::connect(webView, SIGNAL(urlChanged(QUrl)), this, SLOT(on_webView_urlChanged(QUrl)));
+    }
+    webInspector->show();
+    webInspector->raise();
+    ui->webView = webView;
+    cur_webInspector = webInspector;
+}
+
+void QtMainWindow::tabbarDisconnectWebView(QWebView* webView, QWebInspector* webInspector)
+{
+    if (webView->parent()!=0) {
+        webView->setParent(0);
+        ui->verticalLayout->removeWidget(webView);
+        webView->hide();
+    }
+    if (webView != main_webView) {
+        QObject::disconnect(webView, SIGNAL(linkClicked(const QUrl&)), this, SLOT(on_webView_linkClicked(const QUrl&)));
+        QObject::disconnect(webView, SIGNAL(loadStarted()), this, SLOT(on_webView_loadStarted()));
+        QObject::disconnect(webView, SIGNAL(loadFinished(bool)), this, SLOT(on_webView_loadFinished(bool)));
+        QObject::disconnect(webView, SIGNAL(urlChanged(QUrl)), this, SLOT(on_webView_urlChanged(QUrl)));
+    }
+}
+
+void QtMainWindow::tabbarWebViewRestore(bool reload)
+{
+    if (ui->webView != main_webView) {
+        tabbarDisconnectWebView(ui->webView, cur_webInspector);
+        tabbarConnectWebView(main_webView, main_webInspector);
+        if (reload)
+            main_webView->back();
+    }
+}
+
+void QtMainWindow::tabbarHide()
+{
+    tabbarRemoveAllTabs(true);
+}
+
+int QtMainWindow::tabbarGetHeight()
+{
+    return ui->tabBar->height();
+}
+
+void QtMainWindow::tabbarSwitch(int index)
+{
+    ui->tabBar->setCurrentIndex(index);
+}
+
+int QtMainWindow::tabbarGetCurrent()
+{
+    return tabViews.size() > 0 ? ui->tabBar->currentIndex() : 0;
+}
+
+void QtMainWindow::on_tabBar_currentChanged(int index)
+{
+    if ((index < tabViews.size()) && (index >= 0)) {
+        QTabBarRuntimeParams tbrp = cur_tbrp != 0 ? *cur_tbrp : ui->tabBar->tabData(index).toHash();
+        bool use_current_view_for_tab = tbrp["use_current_view_for_tab"].toBool();
+
+        if (use_current_view_for_tab) {
+            tabbarConnectWebView(main_webView, main_webInspector);
+        } else {
+            tabbarDisconnectWebView(main_webView, main_webInspector);
+        }
+
+        for (unsigned int i=0; i<tabViews.size(); ++i) {
+            if (tabViews[i] != main_webView) {
+                if (use_current_view_for_tab || (i != index)) {
+                    tabbarDisconnectWebView(tabViews[i], tabInspect[i]);
+                } else {
+                    tabbarConnectWebView(tabViews[i], tabInspect[i]);
+                }
+            }
+        }
+
+        if (tbrp["on_change_tab_callback"].toString().length() > 0) {
+            QString body = QString("&rho_callback=1&tab_index=") + QVariant(index).toString();
+            rho::String* cbStr = new rho::String(tbrp["on_change_tab_callback"].toString().toStdString());
+            const char* cb = cbStr->c_str();
+            rho::String* bStr = new rho::String(body.toStdString());
+            const char* b = bStr->c_str();
+            rho_net_request_with_data(rho_http_normalizeurl(cb), b);
+        }
+
+        if (tbrp["reload"].toBool() || (ui->webView->history()->count()==0)) {
+            rho::String* strAction = new rho::String(tbrp["action"].toString().toStdString());
+            RHODESAPP().loadUrl(*strAction);
+        }
+    }
+}
+
+
+// Toolbar:
 
 void QtMainWindow::toolbarRemoveAllButtons()
 {
@@ -186,7 +376,7 @@ void QtMainWindow::on_toolbarAction_triggered(bool checked)
     QObject* sender = QObject::sender();
     QAction* action;
     if (sender && (action = dynamic_cast<QAction*>(sender))) {
-		rho::String* strAction = new rho::String(action->data().toString().toStdString());
+        rho::String* strAction = new rho::String(action->data().toString().toStdString());
         if ( strcasecmp(strAction->c_str(), "forward") == 0 )
             rho_webview_navigate_forward();
         else
@@ -212,18 +402,21 @@ void QtMainWindow::toolbarAddSeparator()
 
 void QtMainWindow::setToolbarStyle(bool border, QString background)
 {
-	QString style = "";
-	if (!border) style += "border:0px";
-	if (background.length()>0) {
+    QString style = "";
+    if (!border) style += "border:0px";
+    if (background.length()>0) {
         if (style.length()>0) style += ";";
         style += "background:"+background;
     }
-	if (style.length()>0) {
-		style = "QToolBar{"+style+"}";
-	    ui->toolBar->setStyleSheet(style);
+    if (style.length()>0) {
+        style = "QToolBar{"+style+"}";
+        ui->toolBar->setStyleSheet(style);
         ui->toolBarRight->setStyleSheet(style);
-	}
+    }
 }
+
+
+// Menu:
 
 void QtMainWindow::menuAddAction(const QString & text, int item)
 {
