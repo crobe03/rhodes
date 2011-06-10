@@ -509,6 +509,7 @@ void CMainWindow::createTabbar(int bar_type, rho_param *p)
         }
         if (!skip_item) {
             QtMainWindow::QTabBarRuntimeParams tbrp;
+            tbrp["label"] = QString(label);
             tbrp["action"] = QString(action);
             tbrp["reload"] = charToBool(reload);
             tbrp["use_current_view_for_tab"] = charToBool(use_current_view_for_tab);
@@ -548,24 +549,7 @@ void CMainWindow::tabbarSwitch(int index)
 
 void CMainWindow::tabbarBadge(int index, char* badge)
 {
-    // TODO: Implement!
-
-	//RAWLOG_INFO2("set_tab_badge called: %d : %s",index,val);
-    //id runnable = [RhoNativeBarSetTabBadgeTask class];
-    //id arg1 = [NSValue valueWithBytes:&index objCType:@encode(int)];
-    //id arg2 = [NSValue valueWithBytes:&val objCType:@encode(char*)];
-    //[Rhodes performOnUiThread:runnable arg:arg1 arg:arg2 wait:YES];
-    //RAWLOG_INFO("set_tab_badge done");
-
-	// RhoNativeBarSetTabBadgeTask:
-	/*
-    char* badge_val=[val pointerValue];
-    [value getValue:&index];
-    RAWLOG_INFO1("RhoNativeBarSetTabBadgeTask %d",index);
-    RAWLOG_INFO1("RhoNativeBarSetTabBadgeTask %s",badge_val);
-	  //if ([[[Rhodes sharedInstance] mainView] respondsToSelector:@selector(setTabBadge::)]) 	
-	    [[[Rhodes sharedInstance] mainView] setTabBadge:index val:badge_val];
-	*/
+    ((QtMainWindow*)qtMainWindow)->tabbarSetBadge(index, QString(badge ? badge : ""));
 }
 
 int CMainWindow::tabbarGetCurrent()

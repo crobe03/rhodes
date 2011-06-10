@@ -54,11 +54,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="RhoAsyncHttp.cs" />
+    <Compile Include="RhoConfig.cs" />
     <Compile Include="RhoJSON.cs" />
     <Compile Include="RhoNativeBar.cs" />
     <Compile Include="RhoSyncEngine.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RhoDatabase.cs" />
+    <Compile Include="RhoSystem.cs" />
     <Compile Include="RhoWebView.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

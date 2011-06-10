@@ -221,13 +221,6 @@ void create_folder(LPTSTR Path)
 
 //#endif //_WIN32_WCE
 
-void take_picture(char* callback_url) {
-//#if defined(_WIN32_WCE)
-	HWND main_wnd = getMainWnd();
-	::PostMessage(main_wnd,WM_TAKEPICTURE,0,(LPARAM)strdup(callback_url));
-//#endif
-}
-
 void choose_picture(char* callback_url) {
 //#if defined(_WIN32_WCE)
 	HWND main_wnd = getMainWnd();
@@ -235,3 +228,11 @@ void choose_picture(char* callback_url) {
 //#endif
 }
 
+void take_picture(char* callback_url, rho_param * options_hash) {
+	HWND main_wnd = getMainWnd();
+	::PostMessage(main_wnd,WM_TAKEPICTURE,0,(LPARAM)strdup(callback_url));
+}
+
+VALUE get_camera_info(const char* camera_type) {
+     return rho_ruby_get_NIL();
+}

@@ -7,6 +7,7 @@
 #include <QtWebKit/QWebView>
 #include <QtWebKit/QWebInspector>
 #include <QAction>
+#include "QtWebInspector.h"
 #include "MainWindowCallback.h"
 #include "common/IRhoThreadImpl.h"
 
@@ -56,6 +57,7 @@ public:
 	void tabbarSwitch(int index);
 	int tabbarGetCurrent();
     int tabbarAddTab(const QString& label, const char* icon, bool disabled, const QColor* web_bkg_color, QTabBarRuntimeParams& tbri);
+    void tabbarSetBadge(int index, QString badge);
 private:
     void tabbarWebViewRestore(bool reload);
     void tabbarConnectWebView(QWebView* webView, QWebInspector* webInspector);
@@ -70,6 +72,7 @@ private:
     QWebView* main_webView;
     QWebInspector* cur_webInspector;
     QTabBarRuntimeParams* cur_tbrp;
+    QtWebInspector* webInspectorWindow;
 
 private slots:
     void on_webView_urlChanged(QUrl );
