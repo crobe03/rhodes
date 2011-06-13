@@ -831,7 +831,7 @@ public class RhodesService extends Service {
 			    PhoneId phoneId = RhodesService.getInstance().getPhoneId();
 			    return phoneId.toString();
 			}
-			else if (name.equalsIgnoreCase("webview")) {
+			else if (name.equalsIgnoreCase("webview_framework")) {
 				return "WEBKIT/" + Build.VERSION.RELEASE;
 			}
 		}
